@@ -2,7 +2,7 @@
 name = "latex2mathematica"
 description = "Converts Latex-formatted Math to Mathematica-style expressions"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 # TODO: license, classifiers
 dependencies = [
     "click"
