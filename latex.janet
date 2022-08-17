@@ -66,7 +66,7 @@
    :approx "\\[TildeTilde\\]"
    })
 
-(def DEBUG false)
+(def DEBUG (= (os/getenv "LATEX_DEBUG" "0") "1"))
 
 (defn- dbg [x &opt lbl]
   (if (not DEBUG) x (do
