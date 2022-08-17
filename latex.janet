@@ -62,6 +62,8 @@
    :times "\\[Times\\]"
    # This is non-standard
    :cross "\\[Cross\\]"
+   # Why does mathematica make things so weird?
+   :approx "\\[TildeTilde\\]"
    })
 
 (def DEBUG false)
