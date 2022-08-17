@@ -2,7 +2,8 @@
   (do
     (if (= (length grp) 1)
       (in grp 0)
-      grp)))
+      # convert from tuple -> array for consistency
+      (array grp))))
 
 (defn- build-command [name args]
   (let [cmd @{:cmd name}]
@@ -14,27 +15,30 @@
 (def latex-gram (peg/compile
   ~{:commandName (capture (sequence
                    # Initial must be ASCII letter or \ (for \\)
-                   (choice :a "\\")
+                   (+ :a "\\")
                    # After that we have can include digits and a number of other choices
-                   (any (choice :d :a (set "_")))) :commandName)
+                   (any (+ :d :a "_"))) :commandName)
     # A single argument to a latex command
-    :commandArg (sequence "{" :latex "}")
-    :command (replace (sequence
+    :commandArg (* "{" :latex "}")
+    :command (replace (*
                 "\\"
                 :commandName
                 (group (any :commandArg))) ,build-command)
     # Forbidden latex characters in "literals":
-    # backslash, quote, open/closing bracket or paren (those have seperate meanings)
+    # backslash, quote, open/closing bracket or paren and underscore (those have seperate meanings)
     #
     # NOTE: We permit newlines even though those are only valid in certian contexts
-    :literalText (capture (some (if-not (set "\\{}()\"\"") 1)) :literal)
+    :literalText (capture (some (if-not (set "\\{}()\"\"_") 1)) :literal)
+    :subscript (group (* (constant "subscript") :simpleLatex "_" :singleLatex))
     # parantheeses can be used for grouping, but must balance
-    :parenGroup (group (sequence (capture "(") :latex (capture ")")))
-    :latex (replace (any (choice :command :literalText :parenGroup)) ,maybe-group)
-    # Main is alias for latex
-    #
-    # Unfortunately this all results in an extra level of nesting...
-    :main :latex
+    :parenGroup (group (* (capture "(") :latex (capture ")")))
+    # simpleLatex: command | literalText | parenGroup
+    :simpleLatex (+ :command :literalText :parenGroup)
+    :singleLatex (+ :subscript :simpleLatex)
+    # latex: singleLatex*
+    :latex (replace (any :singleLatex) ,maybe-group)
+    # main: latex EOF
+    :main (* :latex -1)
     }))
 
 (defn latex [text] (peg/match latex-gram text))
@@ -102,6 +106,8 @@
   (defn translate-seq [latex]
     (cond
       (empty? latex) latex
+      (= (first latex) "subscript")
+        (let [[_ a b] latex] (lower-func "Subscript" ;(map translate [a b])))
       (= (first latex) "(") (do
         (assert (= (last latex) ")"))
         (group (translate (slice latex 1 -2)) true))
@@ -122,5 +128,6 @@
     (errorf "Unexpected type: %j" latex)))
 
 (let [parsed (latex (string/trimr (file/read stdin :all)))]
-  (dbg "parsed latex")
+  (assert (not (nil? latex)) "Failed to parse!")
+  (dbg parsed "parsed latex")
   (print (translate parsed)))
