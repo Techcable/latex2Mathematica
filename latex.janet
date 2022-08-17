@@ -58,6 +58,10 @@
   {:ne "\\[NotEquals\\]"
    :infty "\\[Infinity\\]"
    :pm "\\[PlusMinus\\]"
+   :cdot "."
+   :times "\\[Times\\]"
+   # This is non-standard
+   :cross "\\[Cross\\]"
    })
 
 (def DEBUG false)
@@ -70,9 +74,23 @@
       (print (string/format "%s: %s" lbl val)))
     x)))
 
+(defn- lower-func [name & args]
+  (string/format "%s[%s]" name (string/join args ",")))
+
+(defn- simple-func [name arity]
+  (assert (int? arity))
+  (fn [& args]
+    (when (not= (length args) arity)
+      (errorf "Expected %d args for %s: %q" arity name args))
+    (lower-func name ;args)))
+
 (def command-table
   (do
-    (def tbl @{:frac (fn [a b] (string/join [(group a) "/" (group b)]))})
+    (def tbl @{
+      :frac (fn [a b] (string/join [(group a) "/" (group b)]))
+      :sqrt (simple-func "Sqrt" 1)
+      :vec (simple-func "OverVector" 1)
+      :hat (simple-func "OverHat" 1)})
     (loop [[name text] :pairs literal-table]
       (put tbl name (fn [] text)))
     tbl))
@@ -101,4 +119,6 @@
        (dbg (cmd ;(map translate cmdArgs)) cmdName))
     (errorf "Unexpected type: %j" latex)))
 
-(print "Mathematica: " (translate (dbg (latex (string/trimr (file/read stdin :all))) "parsed latex")))
+(let [parsed (latex (string/trimr (file/read stdin :all)))]
+  (dbg "parsed latex")
+  (print (translate parsed)))
