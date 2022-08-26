@@ -5,6 +5,11 @@
       # convert from tuple -> array for consistency
       (array grp))))
 
+(defn contains? [s val]
+  (assert (or (array? s) (tuple? s)) (errorf "Expected a sequence type: %t" s))
+  (not (nil? (index-of s val))))
+
+
 (defn- build-command [name args]
   (let [cmd @{:cmd name}]
     (when args
@@ -12,6 +17,9 @@
     # I prefer structs ;)
     (table/to-struct cmd)))
  
+(defn- func-args [args]
+  {:func-args args})
+
 (def latex-gram (peg/compile
   ~{:commandName (capture (sequence
                    # Initial must be ASCII letter or \ (for \\)
@@ -32,8 +40,15 @@
     :subscript (group (* (constant "subscript") :simpleLatex "_" :singleLatex))
     # parantheeses can be used for grouping, but must balance
     :parenGroup (group (* (capture "(") :latex (capture ")")))
+    # brackets are used for function application in mathematica
+    #
+    # In latex, they are regular grouping (no different then parameters)
+    #
+    # WARNING: Right now, we don't translate from latex-style function application
+    # f(x) to mathematica style f[x]
+    :bracketGroup (/ (* "[" :latex "[") ,func-args)
     # simpleLatex: command | literalText | parenGroup
-    :simpleLatex (+ :command :literalText :parenGroup)
+    :simpleLatex (+ :command :literalText :parenGroup :bracketGroup)
     :singleLatex (+ :subscript :simpleLatex)
     # latex: singleLatex*
     :latex (replace (any :singleLatex) ,maybe-group)
@@ -111,8 +126,19 @@
       (= (first latex) "subscript")
         (let [[_ a b] latex] (lower-func "Subscript" ;(map translate [a b])))
       (= (first latex) "(") (do
-        (assert (= (last latex) ")"))
+        (assert (= (last latex) ")") "Mismatched parens")
         (group (translate (slice latex 1 -2)) true))
+      (do
+        (def res @[])
+        (loop [i :range [0 (length latex)]]
+          (def val (in latex i))
+          # Special-case Function application
+          (if-let [args (get latex :func-args)]
+            (array/concat res "[" (string/join args ",") "]")
+            (do
+              (unless (or (empty? latex) (= "]" (last latex))) (array/push res " "))
+              (array/push res (translate val)))))
+          (string/join res ""))
       (string/join (map translate latex) " ")))
   (case (dbg (type latex) "type(translate)")
     :string latex
