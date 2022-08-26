@@ -96,7 +96,9 @@
       :frac (fn [a b] (string/join [(group a) "/" (group b)]))
       :sqrt (simple-func "Sqrt" 1)
       :vec (simple-func "OverVector" 1)
-      :hat (simple-func "OverHat" 1)})
+      :hat (simple-func "OverHat" 1)
+      # nonstandard extensions
+      :norm (simple-func "Norm" 1)})
     (loop [[name text] :pairs literal-table]
       (put tbl name (fn [] text)))
     tbl))
@@ -128,6 +130,6 @@
     (errorf "Unexpected type: %j" latex)))
 
 (let [parsed (latex (string/trimr (file/read stdin :all)))]
-  (assert (not (nil? latex)) "Failed to parse!")
+  (assert (not (nil? parsed)) "Failed to parse!")
   (dbg parsed "parsed latex")
   (print (translate parsed)))
