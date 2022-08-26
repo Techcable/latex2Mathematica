@@ -129,7 +129,10 @@
        (dbg (cmd ;(map translate cmdArgs)) cmdName))
     (errorf "Unexpected type: %j" latex)))
 
-(let [parsed (latex (string/trimr (file/read stdin :all)))]
-  (assert (not (nil? parsed)) "Failed to parse!")
-  (dbg parsed "parsed latex")
-  (print (translate parsed)))
+(loop [line :iterate (file/read stdin :line)]
+  (let [parsed (latex (string/trimr line))]
+    (if (nil? parsed)
+      (xprint stderr "Failed to parse!")
+      (do
+       (dbg parsed "parsed latex")
+       (print (translate parsed))))))
